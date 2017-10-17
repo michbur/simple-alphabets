@@ -1,0 +1,371 @@
+\documentclass{beamer}
+\usetheme{metropolis}
+\usepackage[utf8]{inputenc}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{natbib}
+\usepackage{graphicx}
+\usepackage{array,booktabs,tabularx}
+\usepackage{epstopdf}
+\usepackage{colortbl, xcolor}
+\usepackage{url}
+
+\newcommand\Fontvi{\fontsize{6}{7.2}\selectfont}
+
+\title{Simplified alphabets in protein analysis}
+\date{}
+\author{Michał Burdukiewicz}
+\institute{Department of Genomics, University of Wrocław}
+
+\begin{document}
+
+  <<knitrIntro, echo = FALSE, message=FALSE,warning=FALSE>>=
+source("my_ggplot_theme.R")
+
+library(dplyr)
+library(reshape2)
+library(xtable)
+library(biogram)
+library(seqinr)
+library(VennDiagram)
+  
+source("script.R")  
+
+print_bt <- function(x) {
+  rws <- 0L:(nrow(x) - 1)
+  col <- c("\\rowcolor{green!10}", "\\rowcolor{blue!10}", "\\rowcolor{red!10}", "\\rowcolor{yellow!10}")
+  print(xtable(x, digits = 0), booktabs = TRUE,
+        add.to.row = list(pos = as.list(rws), command = col),
+        print.results = FALSE)
+}
+
+print_bt2 <- function(x) {
+  rws <- seq(1, nrow(x) - 1, by = 2)
+  col <- rep("\\rowcolor[gray]{0.85}", length(rws))
+  print(xtable(x, digits = 0), booktabs = TRUE,
+        add.to.row = list(pos = as.list(rws), command = col),
+        print.results = FALSE, include.rownames = FALSE)
+}  
+  
+cls <- c("\\colorbox{green!10}", "\\colorbox{blue!10}", "\\colorbox{red!10}", "\\colorbox{yellow!10}")
+
+group2df <- function(group_list, caption = NULL, label = NULL) {
+  tab <- data.frame(Groups = sapply(group_list, function(i)
+    paste0(toupper(sort(i)), collapse = ", ")))
+  tab <- cbind(ID = 1L:nrow(tab), tab)
+  rws <- seq(1, nrow(tab) - 1, by = 2)
+  col <- rep("\\rowcolor[gray]{0.85}", length(rws))
+  colnames(tab) <- c("Subgroup ID", "Amino acids")
+  res <- print(xtable(tab, caption = caption, label = label), 
+               include.rownames = FALSE, booktabs = TRUE,
+               add.to.row = list(pos = as.list(rws), command = col), print.results = FALSE, 
+               caption.placement = "top", sanitize.text.function = identity, 
+               sanitize.rownames.function = identity)
+  #res
+  print(xtable(tab))
+}  
+  
+amyloids_plot <- read.csv("amyloid_plot_data.csv")
+
+levels(amyloids_plot[["et"]]) <- c("Best-performing simplified alphabet", 
+                                   "simplified alphabet", "Full alphabet", 
+                                   "Standard simplified alphabet")
+
+
+amyloids_plot[["len_range"]] <- factor(amyloids_plot[["len_range"]], 
+                                       levels = c("Test peptide length: 6 ", "Test peptide length: 7-10", 
+                                                  "Test peptide length: 11-15", "Test peptide length: 16-25"))
+
+subdat <- filter(amyloids_plot, pos == "Training peptide length: 6")
+
+best_enc <- list(c("G"), 
+                 c("K", "P", "R"),
+                 c("I", "L", "V"),
+                 c("F", "W", "Y"),
+                 c("A", "C", "H", "M"),
+                 c("D", "E", "N", "Q", "S", "T"))
+names(best_enc) <- 1L:6
+
+
+@
+  
+
+\maketitle
+
+\begin{frame}{Outline}
+
+\tableofcontents
+
+\end{frame} 
+
+
+\begin{frame}{Signal peptides}
+
+\begin{figure} 
+\includegraphics[width=0.75\textwidth]{static_figure/SP.png}
+\end{figure}
+
+Signal peptides possess three distinct domains with variable length and characteristic amino acid composition~\citep{hegde_surprising_2006}:
+      \begin{itemize}
+        \item n-region: mostly basic residues~\citep{nielsen_prediction_1998},
+        \item h-region: strongly hydrophobic residues~\citep{nielsen_prediction_1998},
+        \item c-region: a few polar, uncharged residues.
+      \end{itemize}
+\end{frame}
+
+
+%Peptydy sygnałowe rozpoczynają się naładowanym dodatnio n-regionem, po którym występuje hydrofobowy h-region i c-region zakończony miejscem cięcia rozpoznawanym przez peptydazę sygnałową. 
+
+  
+\begin{frame}{Signal peptides}  
+Amino acid composition of signal peptides differ between Plasmodium sp. and other eukaryotes. Therefore, predictors of signal peptides do not detect malarial signal peptides accurately.
+
+<<echo = FALSE, message=FALSE,warning=FALSE,fig.height=4,results='asis'>>=
+plot_pca(pca_full)
+  #ggtitle("PCA częstości aminokwasów w peptydach sygnałowych")
+@  
+
+PCA of amino acid frequency in signal peptides.
+\end{frame}  
+
+
+\section{Simplified alphabets}
+
+\begin{frame}
+Simplified alphabets:
+\begin{itemize}
+\item are based on grouping amino acids with similar physicochemical properties,
+\item ease computational analysis of a sequence~\citep{murphy_simplified_2000},
+\item create more explicite models.
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}  
+Two sequences that are drastically different considering their amino acids composition can have the same physicochemical properties.
+
+
+<<echo = FALSE, message=FALSE,warning=FALSE,fig.height=4.5,results='asis'>>=
+seq1 <- c("f", "k", "v", "w", "p", "d", "h", "g", "s", "g")
+seq2 <- c("y", "c", "m", "i", "y", "r", "a", "q", "t", "n")
+@
+
+
+\begin{columns}
+
+\begin{column}{0.2\textwidth}
+
+Sequence I: 
+
+Sequence II: 
+\end{column}
+
+\begin{column}{0.2\textwidth}
+ 
+\texttt{\Sexpr{toupper(paste0(seq1, collapse = ""))}}
+
+\texttt{\Sexpr{toupper(paste0(seq2, collapse = ""))}}
+\end{column}
+
+\end{columns}
+
+\end{frame}  
+
+
+\begin{frame}
+<<echo = FALSE, message=FALSE,warning=FALSE,fig.height=4.5,results='asis'>>=
+seq_dat <- rbind(data.frame(seq = "Sequence I", pos = 1L:10, 
+                            aa = seq1, val = aaprop["ARGP820101", seq1]),
+                 data.frame(seq = "Sequence II", pos = 1L:10, 
+                            aa = seq2, val = aaprop["ARGP820101", seq2])) %>% 
+  mutate(hydroph = val < 0.4)
+
+ggplot(seq_dat, aes(x = factor(pos), y = val, label = toupper(aa), 
+                    group = seq)) +
+  geom_text(vjust = "outward", size = 5, show.legend = FALSE) +
+  #geom_point(size = 0) +
+  geom_line(linetype = "dotted", color = "black") +
+  #geom_hline(yintercept = 0.4, linetype = "dashed") +
+  facet_wrap(~ seq, ncol = 1) +
+  scale_x_discrete("Position") +
+  scale_y_continuous("Hydrophobicity (Argos et al., 1982)", expand = c(.1, .1)) +
+  scale_color_manual(values = c("red", "blue")) +
+  my_theme
+@
+\end{frame}  
+
+
+\begin{frame}
+<<echo = FALSE, message=FALSE,warning=FALSE,fig.height=4.5,results='asis'>>=
+ggplot(seq_dat, aes(x = factor(pos), y = val, label = toupper(aa), 
+                    group = seq, colour = hydroph)) +
+  geom_hline(yintercept = 0.3, linetype = "dashed", size = 1) +
+  geom_text(vjust = "outward", size = 5, show.legend = FALSE) +
+  #geom_point(size = 0) +
+  geom_line(linetype = "dotted", color = "black") +
+  facet_wrap(~ seq, ncol = 1) +
+  scale_x_discrete("Position") +
+  scale_y_continuous("Hydrophobicity (Argos et al., 1982)", expand = c(.1, .1)) +
+  scale_color_manual(values = c("red", "blue")) +
+  my_theme
+@
+\end{frame}
+
+\begin{frame}
+\begin{table}
+\begin{tabular}{cl}
+\toprule
+Subgroup & Amino acid \\ 
+\midrule
+  1 & C, I, L, K, M, F, P, W, Y, V \\ 
+  2 & A, D, E, G, H, N, Q, R, S, T \\ 
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{columns}
+
+\begin{column}{0.2\textwidth}
+
+Sequence I: 
+
+Sequence II: 
+\end{column}
+
+\begin{column}{0.2\textwidth}
+ 
+\texttt{\Sexpr{toupper(paste0(seq1, collapse = ""))}}
+
+\texttt{\Sexpr{toupper(paste0(seq2, collapse = ""))}}
+\end{column}
+
+\end{columns}
+
+\end{frame}  
+
+
+\begin{frame}
+\begin{table}
+\begin{tabular}{cl}
+\toprule
+Subgroup & Amino acid \\ 
+\midrule
+  \textcolor{red}{1} & \textcolor{red}{C, I, L, K, M, F, P, W, Y, V} \\ 
+  \textcolor{blue}{2} & \textcolor{blue}{A, D, E, G, H, N, Q, R, S, T} \\ 
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{columns}
+
+\begin{column}{0.2\textwidth}
+
+Sequence I: 
+
+Sequence II: 
+\end{column}
+
+\begin{column}{0.2\textwidth}
+ 
+\textcolor{red}{\texttt{\Sexpr{toupper(paste0(seq1[1L:5], collapse = ""))}}}\textcolor{blue}{\texttt{\Sexpr{toupper(paste0(seq1[6L:10], collapse = ""))}}}
+
+\textcolor{red}{\texttt{\Sexpr{toupper(paste0(seq2[1L:5], collapse = ""))}}}\textcolor{blue}{\texttt{\Sexpr{toupper(paste0(seq2[6L:10], collapse = ""))}}}
+\end{column}
+
+\end{columns}
+
+\end{frame}  
+
+
+
+
+  
+  
+     \begin{frame}{The best-performing simplified alphabet}
+   \begin{table}[ht]
+\centering
+\begin{tabular}{rl}
+  \toprule
+Subgroup ID & Amino acids \\ 
+  \midrule
+  1 & G \\ 
+   \rowcolor{red!20}  2 & K, P, R \\ 
+    3 & I, L, V \\ 
+   \rowcolor[gray]{0.85}  4 & F, W, Y \\ 
+    5 & A, C, H, M \\ 
+   \rowcolor[gray]{0.85}  6 & D, E, N, Q, S, T \\ 
+   \bottomrule
+\end{tabular}
+\end{table}
+   
+Group 2 - charged breakers of $\beta$-structures.  
+   
+   \end{frame}  
+   
+\begin{frame}{Signal peptide prediction}
+<<echo = FALSE, message=FALSE,warning=FALSE,fig.height=4.5,results='asis'>>=
+grid.arrange(plot_pca(pca_full) + ggtitle("Full alphabet"),
+             plot_pca(pca_naive) + ggtitle("Simplified alphabet"),
+             ncol = 2)
+@
+PCA of amino acid frequency in signal peptides.
+
+\end{frame}  
+
+
+\begin{frame}{Signal peptide prediction}
+\begin{figure} 
+\includegraphics[width=0.75\textwidth]{static_figure/SP.png}
+\end{figure}
+SignalP 4.1~\citep{petersen_signalp_2011} combines output of two separate predictors:
+\begin{itemize}
+\item cleavage site,
+\item signal peptide.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Signal peptide prediction}
+
+<<echo = FALSE,message=FALSE,fig.align='center',fig.height=4,warning=FALSE>>=
+source("my_ggplot_theme.R")
+load("./results/fr_benchmark_full.RData")
+load("./results/fr_benchmark_signalHsmm.RData")
+
+dat <- unlist(fr_benchmark, recursive = FALSE) %>% 
+  unlist(recursive = FALSE) %>% 
+  do.call(rbind, .) %>% 
+  lapply(unlist) %>% 
+  data.frame() %>% 
+  rename(MCC = MCC.MCC, AUC = AUC.AUC) %>% 
+  mutate(classifier = "signalP",
+         id = rep(sort(rep(1L:20, 2)), 9),
+         sp = factor(sp, labels = c(20, 2, 4)),
+         cs = factor(cs, labels = c(20, 2, 4))) %>% 
+  mutate(sp = factor(sp, levels = levels(sp)[c(2, 3, 1)]),
+         cs = factor(cs, levels = levels(cs)[c(2, 3, 1)]))
+
+cmp_dat <- cbind(filter(dat, !plas),
+                 filter(dat, plas) %>% 
+                   select(MCC, AUC, mscsd) %>% 
+                   rename(MCC_p = MCC, AUC_p = AUC, mscsd_p = mscsd))
+
+filter(cmp_dat, sp != "4", cs != "4") %>%
+  ggplot(aes(x = MCC, y = MCC_p)) +
+  geom_point(aes(fill = sp), size = 3, shape = 21, color = "white") +
+  geom_point(aes(color = cs), size = 4.5, shape = 1, stroke = 1.2) +
+  my_theme +
+  scale_x_continuous("MCC (other eukaryotes)") +
+  scale_y_continuous("MCC (Plasmodiidae)") +
+  scale_fill_discrete("Alphabet\n(signal peptide)") +
+  scale_color_discrete("Alphabet\n(cleavage site)")
+@
+\end{frame}
+
+\begin{frame}[allowframebreaks]
+        \frametitle{References}
+  \bibliographystyle{apalike}
+  \bibliography{references}
+\end{frame}  
+
+
+\end{document}
