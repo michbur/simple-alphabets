@@ -107,7 +107,7 @@ Simplified alphabets:
 \begin{itemize}
 \item are based on grouping amino acids with similar physicochemical properties,
 \item ease computational analysis of a sequence~\citep{murphy_simplified_2000},
-\item create more explicite models.
+\item create more explicit models.
 \end{itemize}
 \end{frame}
 
@@ -337,7 +337,7 @@ Algorithms:
 \end{frame}   
   
 \begin{frame}
-Genetic algorithm: cadidate solutions are individuals in a evolving population, where survival is depending on the quality of the solution.
+Genetic algorithm: candidate solutions are individuals in a evolving population, where survival is depending on the quality of the solution.
 
 New individuals are created through cross-over and mutation of the fittest individuals.
 \end{frame}   
@@ -374,7 +374,7 @@ We compare six data sets: 1-grams from signal peptides and mature proteins belon
 \end{tabular}
 \end{table}
 
-$x_{TAXON,N-GRAM}$ denotes the count of a specific 1-gram (a latin number) in a specific taxon (A or B).
+$x_{TAXON,N-GRAM}$ denotes the count of a specific 1-gram (a Latin number) in a specific taxon (A or B).
 \end{frame}
  
 \begin{frame}{Fitness function}
@@ -453,7 +453,7 @@ ggplot(ftn_dat, aes(x = generation, y = value, color = alph_size, linetype = alp
 \begin{frame}{Best simplified alphabets}
 To be absolutely sure that we have only alphabets in the fitness plateau, I considered only alphabets from generations 200-350.
 
-To find the most common groupings of amino acids, I computed the co-occurence of amino acids in groups. The co-occurence is defined as the fraction of best-fitness alphabets, where the amino acid I is in the same group as the amino acid II.
+To find the most common groupings of amino acids, I computed the co-occurrence of amino acids in groups. The co-occurrence is defined as the fraction of best-fitness alphabets, where the amino acid I is in the same group as the amino acid II.
 
 \end{frame} 
 
@@ -546,7 +546,7 @@ ggplot(mean_cooc, aes(x = Var1, y = value, fill = five_lowest)) +
 
 @
 
-Only fours residues had constantly the lowest co-occurence: A, C, L and S.
+Only fours residues had constantly the lowest co-occurrence: A, C, L and S.
 \end{frame}
 
 
@@ -618,7 +618,7 @@ filter(pca_df, status == "Signal peptide") %>%
   #ggtitle("PCA częstości aminokwasów w peptydach sygnałowych")
 @  
 
-PCA of amino acid frequency in signal peptides (reduced alphabet).
+PCA of amino acid frequency in signal peptides (simplified alphabet).
 \end{frame}  
 
 \begin{frame}
@@ -630,13 +630,13 @@ filter(pca_df, status == "Signal peptide") %>%
   #ggtitle("PCA częstości aminokwasów w peptydach sygnałowych")
 @  
 
-PCA of amino acid frequency in signal peptides (reduced alphabet).
+PCA of amino acid frequency in signal peptides (simplified alphabet).
 \end{frame}  
 
 \begin{frame}{Summary}
 \begin{itemize}
 \item Mean $\chi^2$ is not the appropriate fitness measure.
-\item Repeats of spefic amino acids (A, C, L and S) are typical for signal peptides \citep{labaj_single_2010}.
+\item Repeats of specific amino acids (especially leucine) are typical for signal peptides and have functions associated with protein localisation \citep{labaj_single_2010, mier_context_2017}.
 \end{itemize}
 \end{frame}  
 
