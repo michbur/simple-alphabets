@@ -99,35 +99,6 @@ names(best_enc) <- 1L:6
 \end{frame} 
 
 
-\begin{frame}{Signal peptides}
-
-\begin{figure} 
-\includegraphics[width=0.75\textwidth]{static_figure/SP.png}
-\end{figure}
-
-Signal peptides possess three distinct domains with variable length and characteristic amino acid composition~\citep{hegde_surprising_2006}:
-      \begin{itemize}
-        \item n-region: mostly basic residues~\citep{nielsen_prediction_1998},
-        \item h-region: strongly hydrophobic residues~\citep{nielsen_prediction_1998},
-        \item c-region: a few polar, uncharged residues.
-      \end{itemize}
-\end{frame}
-
-
-%Peptydy sygnałowe rozpoczynają się naładowanym dodatnio n-regionem, po którym występuje hydrofobowy h-region i c-region zakończony miejscem cięcia rozpoznawanym przez peptydazę sygnałową. 
-
-  
-\begin{frame}{Signal peptides}  
-Amino acid composition of signal peptides differ between Plasmodium sp. and other eukaryotes. Therefore, predictors of signal peptides do not detect malarial signal peptides accurately.
-
-<<echo = FALSE, message=FALSE,warning=FALSE,fig.height=4,results='asis'>>=
-plot_pca(pca_full)
-  #ggtitle("PCA częstości aminokwasów w peptydach sygnałowych")
-@  
-
-PCA of amino acid frequency in signal peptides.
-\end{frame}  
-
 
 \section{Simplified alphabets}
 
@@ -276,90 +247,406 @@ Sequence II:
 
 \end{frame}  
 
+\section{Signal peptides}
 
+\begin{frame}
 
-
-  
-  
-     \begin{frame}{The best-performing simplified alphabet}
-   \begin{table}[ht]
-\centering
-\begin{tabular}{rl}
-  \toprule
-Subgroup ID & Amino acids \\ 
-  \midrule
-  1 & G \\ 
-   \rowcolor{red!20}  2 & K, P, R \\ 
-    3 & I, L, V \\ 
-   \rowcolor[gray]{0.85}  4 & F, W, Y \\ 
-    5 & A, C, H, M \\ 
-   \rowcolor[gray]{0.85}  6 & D, E, N, Q, S, T \\ 
-   \bottomrule
-\end{tabular}
-\end{table}
-   
-Group 2 - charged breakers of $\beta$-structures.  
-   
-   \end{frame}  
-   
-\begin{frame}{Signal peptide prediction}
-<<echo = FALSE, message=FALSE,warning=FALSE,fig.height=4.5,results='asis'>>=
-grid.arrange(plot_pca(pca_full) + ggtitle("Full alphabet"),
-             plot_pca(pca_naive) + ggtitle("Simplified alphabet"),
-             ncol = 2)
-@
-PCA of amino acid frequency in signal peptides.
-
-\end{frame}  
-
-
-\begin{frame}{Signal peptide prediction}
 \begin{figure} 
 \includegraphics[width=0.75\textwidth]{static_figure/SP.png}
 \end{figure}
-SignalP 4.1~\citep{petersen_signalp_2011} combines output of two separate predictors:
+
+Signal peptides possess three distinct domains with variable length and characteristic amino acid composition~\citep{hegde_surprising_2006}:
+      \begin{itemize}
+        \item n-region: mostly basic residues~\citep{nielsen_prediction_1998},
+        \item h-region: strongly hydrophobic residues~\citep{nielsen_prediction_1998},
+        \item c-region: a few polar, uncharged residues, similar to the mature protein.
+      \end{itemize}
+\end{frame}
+
+
+%Peptydy sygnałowe rozpoczynają się naładowanym dodatnio n-regionem, po którym występuje hydrofobowy h-region i c-region zakończony miejscem cięcia rozpoznawanym przez peptydazę sygnałową. 
+
+  
+\begin{frame}
+Amino acid composition of signal peptides differ between eukaryotes and bacteria (gram positive and gram negative). Therefore, predictors of signal peptides are not universal and had to be taxon-specific.
+
+<<echo = FALSE, message=FALSE,warning=FALSE,fig.height=4,results='asis'>>=
+freq_df <- read.csv("./results/signal_freq.csv")
+
+pca_df <- select(freq_df, -status, -taxon, -prot) %>%
+  as.matrix %>%
+  prcomp(center = TRUE, scale = TRUE) %>%
+  getElement("x") %>%
+  data.frame() %>%
+  cbind(select(freq_df, status, taxon, prot), .) %>% 
+  mutate(taxon = factor(taxon, labels = c("Eukaryotes", "Gram-negative", "Gram-positive")),
+         status = factor(status, labels = c("Mature protein", "Signal peptide")))
+
+plot_pca <- function(pca)
+  ggplot(pca, aes(x = PC1, y = PC2, color = taxon, fill = taxon)) + 
+  stat_density2d(aes(fill=taxon, alpha=..level.., linetype = status), 
+                 color = "black",
+                 contour = TRUE, geom="polygon") +
+  scale_shape_discrete("") +
+  scale_fill_discrete("") +
+  scale_linetype_manual(values = c("solid", "dashed")) +
+  scale_alpha_continuous(range = c(0.15, 0.3)) +
+  guides(alpha = FALSE) +
+  my_theme
+
+filter(pca_df, status == "Signal peptide") %>% 
+  plot_pca() + 
+  guides(linetype = FALSE) 
+  #ggtitle("PCA częstości aminokwasów w peptydach sygnałowych")
+@  
+
+PCA of amino acid frequency in signal peptides.
+\end{frame}  
+
+\begin{frame}
+<<echo = FALSE, message=FALSE,warning=FALSE,fig.height=4,results='asis'>>=
+filter(pca_df, status == "Signal peptide") %>% 
+  plot_pca() + 
+  guides(linetype = FALSE) +
+  facet_wrap( ~ taxon, nrow = 1)
+  #ggtitle("PCA częstości aminokwasów w peptydach sygnałowych")
+@  
+
+PCA of amino acid frequency in signal peptides.
+\end{frame} 
+
+
+\begin{frame}{Aim}
+Obtain a simplified alphabet to create a unified signal peptide predictor.
+\end{frame} 
+  
+
+\section{Methodology}
+
+\begin{frame}
+The are several algorithm for the effective probing of the alphabet space. They were created mostly with the protein folding/alignment in mind, but can be altered to work in prediction models.
+
+Algorithms:
+
 \begin{itemize}
-\item cleavage site,
-\item signal peptide.
-\end{itemize}
+\item branch and bound (Cannata, 2002),
+\item genetic algorithm without mutation (Palensky, 2006),
+\item genetic algorithm with mutation \citep{lenckowski_simplifying_2007}.
+ \end{itemize}
+
+\end{frame}   
+  
+\begin{frame}
+Genetic algorithm: cadidate solutions are individuals in a evolving population, where survival is depending on the quality of the solution.
+
+New individuals are created through cross-over and mutation of the fittest individuals.
+\end{frame}   
+
+\begin{frame}{Mutation operator}
+Randomly change assignments of amino acids.
+\end{frame}   
+
+
+\begin{frame}{Crossover operator}
+Assignments of amino acids from a single subgroup belonging to a chosen parent alphabet overwrite assignments of amino acids belonging to the other chosen parent alphabet.
+
+\includegraphics[width=0.85\textwidth]{static_figure/ga_co.png}
+\end{frame}   
+
+
+\begin{frame}{Caveat}
+Keep the number of groups constant. If any group is lost, randomly revert chosen amino acids to the missing groups.
+\end{frame}   
+
+
+\begin{frame}{Fitness function}
+Fitness function: a mean value of multiple $\chi^2$ statistics.
+
+We compare six data sets: 1-grams from signal peptides and mature proteins belonging to gram negative bacteria, gram positive bacteria and eukaryotes. The fitness function for a single comparison $f_{single}$ is the value of $chi^2$ statistic for following data (assuming the simplified alphabet of length 6):
+
+\begin{table}
+\centering
+\begin{tabular}{l|l|l|l|l|l|l|}
+\cline{2-7}
+                              & I         & II         & III         & IV         & V         & VI         \\ \hline
+\multicolumn{1}{|l|}{Taxon A} & $x_{A,I}$ & $x_{A,II}$ & $x_{A,III}$ & $x_{A,IV}$ & $x_{A,V}$ & $x_{A,VI}$ \\ \hline
+\multicolumn{1}{|l|}{Taxon B} & $x_{B,I}$ & $x_{B,II}$ & $x_{B,III}$ & $x_{B,IV}$ & $x_{B,V}$ & $x_{B,VI}$ \\ \hline
+\end{tabular}
+\end{table}
+
+$x_{TAXON,N-GRAM}$ denotes the count of a specific 1-gram (a latin number) in a specific taxon (A or B).
 \end{frame}
+ 
+\begin{frame}{Fitness function}
+ $f_{final}$ is an \textbf{arithmetic mean} of multiple $\chi^2$ statistics for all possible taxon comparisons:
+<<echo = FALSE, message=FALSE,warning=FALSE,fig.height=4,results='asis'>>=
+x <- c("gram negative bacteria", "gram positive bacteria", "eukaryotes")
 
-\begin{frame}{Signal peptide prediction}
-
-<<echo = FALSE,message=FALSE,fig.align='center',fig.height=4,warning=FALSE>>=
-source("my_ggplot_theme.R")
-load("./results/fr_benchmark_full.RData")
-load("./results/fr_benchmark_signalHsmm.RData")
-
-dat <- unlist(fr_benchmark, recursive = FALSE) %>% 
-  unlist(recursive = FALSE) %>% 
-  do.call(rbind, .) %>% 
-  lapply(unlist) %>% 
-  data.frame() %>% 
-  rename(MCC = MCC.MCC, AUC = AUC.AUC) %>% 
-  mutate(classifier = "signalP",
-         id = rep(sort(rep(1L:20, 2)), 9),
-         sp = factor(sp, labels = c(20, 2, 4)),
-         cs = factor(cs, labels = c(20, 2, 4))) %>% 
-  mutate(sp = factor(sp, levels = levels(sp)[c(2, 3, 1)]),
-         cs = factor(cs, levels = levels(cs)[c(2, 3, 1)]))
-
-cmp_dat <- cbind(filter(dat, !plas),
-                 filter(dat, plas) %>% 
-                   select(MCC, AUC, mscsd) %>% 
-                   rename(MCC_p = MCC, AUC_p = AUC, mscsd_p = mscsd))
-
-filter(cmp_dat, sp != "4", cs != "4") %>%
-  ggplot(aes(x = MCC, y = MCC_p)) +
-  geom_point(aes(fill = sp), size = 3, shape = 21, color = "white") +
-  geom_point(aes(color = cs), size = 4.5, shape = 1, stroke = 1.2) +
-  my_theme +
-  scale_x_continuous("MCC (other eukaryotes)") +
-  scale_y_continuous("MCC (Plasmodiidae)") +
-  scale_fill_discrete("Alphabet\n(signal peptide)") +
-  scale_color_discrete("Alphabet\n(cleavage site)")
+expand.grid(`Signal peptide origin` = x, `Mature peptide origin` = x) %>% 
+  knitr::kable()
 @
+ 
 \end{frame}
+
+
+\section{Results}
+ 
+\begin{frame}{Fitness function}
+
+<<echo = FALSE, message=FALSE,warning=FALSE,fig.height=5,results='asis'>>=
+load("./results/cross_signal_alph2.RData")
+res6 <- list(max_ftn = max_ftn, mean_ftn = mean_ftn, best_alph = best_alph)
+load("./results/cross_signal_alph2_len2.RData")
+load("./results/cross_signal_alph2_len3.RData")
+load("./results/cross_signal_alph2_len4.RData")
+load("./results/cross_signal_alph2_len5.RData")
+load("./results/cross_signal_alph2_len7.RData")
+load("./results/cross_signal_alph2_len8.RData")
+
+ftn_dat <- lapply(list(res2, res3, res4, res5, res6, res7, res8), function(i) {
+  data.frame(generation = 1L:350, 
+             #max_ftn = i[["max_ftn"]],
+             #mean_ftn = i[["mean_ftn"]],
+             max_ftn_n = i[["max_ftn"]]/max(i[["max_ftn"]]),
+             mean_ftn_n = i[["mean_ftn"]]/max(i[["max_ftn"]]))
+}) %>% do.call(rbind, .) %>% 
+  mutate(alph_size = factor(sort(rep(c(2L:8), 350)))) %>% 
+  melt(id.vars = c("generation", "alph_size")) %>% 
+  rename(ftn = variable) %>% 
+  mutate(ftn = factor(ftn, labels = c("Maximum fitness", "Mean fitness")))
+
+ggplot(ftn_dat, aes(x = generation, y = value, color = alph_size, linetype = alph_size)) +
+  geom_line() +
+  facet_wrap(~ ftn, ncol = 1) +
+  scale_x_continuous("Generation") +
+  scale_y_continuous("Fitness value (normalized)") +
+  scale_color_discrete("Alphabet size") +
+  scale_linetype_discrete("Alphabet size") +
+  ggtitle("Fitness plot") +
+  my_theme +
+  theme(legend.key.size = unit(0.3, "inches")) + 
+  guides(colour = guide_legend(nrow = 1), linetype = guide_legend(nrow = 1))
+@
+ 
+\end{frame} 
+ 
+
+\begin{frame}{Fitness function (close-up)}
+
+<<echo = FALSE, message=FALSE,warning=FALSE,fig.height=5,results='asis'>>=
+ggplot(ftn_dat, aes(x = generation, y = value, color = alph_size, linetype = alph_size)) +
+  geom_line() +
+  facet_wrap(~ ftn, ncol = 1) +
+  scale_x_continuous("Generation") +
+  scale_y_continuous("Fitness value (normalized)") +
+  scale_color_discrete("Alphabet size") +
+  scale_linetype_discrete("Alphabet size") +
+  ggtitle("Fitness plot") +
+  my_theme +
+  coord_cartesian(xlim = c(0, 75)) +
+  theme(legend.key.size = unit(0.3, "inches")) + 
+  guides(colour = guide_legend(nrow = 1), linetype = guide_legend(nrow = 1))
+@
+ 
+\end{frame} 
+
+\begin{frame}{Best simplified alphabets}
+To be absolutely sure that we have only alphabets in the fitness plateau, I considered only alphabets from generations 200-350.
+
+To find the most common groupings of amino acids, I computed the co-occurence of amino acids in groups. The co-occurence is defined as the fraction of best-fitness alphabets, where the amino acid I is in the same group as the amino acid II.
+
+\end{frame} 
+
+\begin{frame}
+
+<<echo = FALSE, message=FALSE,warning=FALSE,fig.height=5.5,results='asis'>>=
+aa_freq <- lapply(list(res2, res3, res4, res5, res6, res7, res8), function(i) {
+  best_alph <- i[["best_alph"]]
+  sapply(names(best_alph[[1]]), function(single_aa)
+    sapply(best_alph[200L:350], function(single_alph) {
+      gr_id <- single_alph[names(single_alph) == single_aa]
+      single_alph == gr_id
+    }) %>% rowMeans()
+  ) %>%
+    data.frame %>% 
+    mutate(Var1 = rownames(.)) %>% 
+    melt(variable.name = "Var2") %>% 
+    mutate(Var1 = toupper(Var1),
+           Var2 = toupper(Var2))
+}) %>% 
+  do.call(rbind, .) %>% 
+  mutate(alph_size = factor(paste0("Size: ", sort(rep(2L:8, 400)))))
+
+ggplot(aa_freq, aes(x = Var1, y = Var2, fill = value)) +
+  geom_tile(color = "black") +
+  scale_x_discrete("Amino acid I") +
+  scale_y_discrete("Amino acid II") +
+  scale_fill_gradient("Co-occurence", high = "#d17312", low = "#04d1b2") +
+  facet_wrap(~ alph_size, ncol = 3) +
+  my_theme +
+  theme(legend.key.width = unit(0.45, "inches"),
+        legend.position=c(.6, .15),
+        legend.direction = "horizontal")
+@
+ 
+\end{frame} 
+
+\begin{frame}{Preference for small groups}
+<<echo = FALSE, message=FALSE,warning=FALSE,fig.height=5.5,results='asis'>>=
+alph_len <- lapply(list(res2, res3, res4, res5, res6, res7, res8), function(i) {
+  gr_lengths <- do.call(rbind, lapply(i[["best_alph"]][201L:350], function(single_alph) {
+    sort(as.vector(table(single_alph)))
+  }))
+  colnames(gr_lengths) <- paste0("gr", 1L:ncol(gr_lengths))
+  data.frame(mean = colMeans(gr_lengths),
+             sd = apply(gr_lengths, 2, sd),
+             gr_id = 1L:ncol(gr_lengths)) %>% 
+    melt(id.vars = "gr_id") %>% 
+    mutate(len = ncol(gr_lengths))
+}) %>% 
+  do.call(rbind, .) %>% 
+  mutate(len = paste0("Alphabet length: ", len))
+
+ggplot(filter(alph_len, variable == "mean"), aes(x = factor(gr_id), y = value)) +
+  geom_col() +
+  facet_wrap(~ len) +
+  scale_x_discrete("Subgroup id\n") +
+  scale_y_continuous("Mean number of residues in a group") +
+  my_theme
+@
+
+\end{frame}
+
+\begin{frame}{Preference for small groups}
+The prevalence of groups of a length 1 may stem from the algorithm itself. Since the Walczak's algorithm keeps the alphabet length constant, when due to the crossover or mutation, a single group is missing, \textbf{randomly chosen amino acid} is altered to be in this group.
+\end{frame}
+
+\begin{frame}{Frequency standardization}
+Normalization by the global amino acid frequency removes the taxon-specific amino acid bias.
+
+The global amino acid frequency is very similar to the amino acid frequency in mature proteins, because they are the majority in our data set. 
+\end{frame}
+
+\begin{frame}
+<<echo=FALSE,results='asis',message=FALSE,fig.height=5>>=
+mean_cooc <- group_by(aa_freq, alph_size, Var1) %>% 
+  summarise(value = mean(value)) %>% 
+  
+  mutate(five_lowest = value <= quantile(value, probs = 0.25)) %>% 
+  ungroup
+
+ggplot(mean_cooc, aes(x = Var1, y = value, fill = five_lowest)) +
+  geom_col() +
+  facet_wrap(~ alph_size, ncol = 2) +
+  scale_x_discrete("Amino acid") +
+  scale_y_continuous("Mean co-occurence") +
+  scale_fill_discrete("The lowest co-ocurences") +
+  my_theme
+
+
+@
+
+Only fours residues had constantly the lowest co-occurence: A, C, L and S.
+\end{frame}
+
+
+\begin{frame}
+<<echo=FALSE,results='asis',message=FALSE,fig.height=5>>=
+ngram_counts_normalized <- read.csv2("./results/ngram_counts_normalized.csv")
+
+filter(ngram_counts_normalized, type == "Mature protein") %>% 
+  ggplot(aes(x = source, y = norm_nvalue2, fill = separates)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ aa) +
+  geom_hline(yintercept = 1) +
+  scale_y_continuous("Normalized amino acid frequency", breaks = c(0, 1, 2)) +
+  scale_fill_manual("Low co-occurence\namino acids", values = c("lightblue3", "gold2")) +
+  my_theme +
+  theme(legend.position = "right") +
+  ggtitle("Mature protein")
+@
+
+\end{frame}
+
+
+\begin{frame}
+<<echo=FALSE,results='asis',message=FALSE,fig.height=5>>=
+ngram_counts_normalized <- read.csv2("./results/ngram_counts_normalized.csv")
+
+filter(ngram_counts_normalized, type == "Signal peptide") %>% 
+  ggplot(aes(x = source, y = norm_nvalue2, fill = separates)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ aa) +
+  geom_hline(yintercept = 1) +
+  scale_y_continuous("Normalized amino acid frequency", breaks = c(0, 1, 2)) +
+  scale_fill_manual("Low co-occurence\namino acids", values = c("lightblue3", "gold2")) +
+  my_theme +
+  theme(legend.position = "right") +
+  ggtitle("Signal peptide")
+@
+
+\end{frame}
+
+\begin{frame}
+<<echo = FALSE, message=FALSE,warning=FALSE,fig.height=4,results='asis'>>=
+freq_df <- read.csv("./results/signal_freq_reduced3.csv")
+
+pca_df <- select(freq_df, -status, -taxon, -prot) %>%
+  as.matrix %>%
+  prcomp(center = TRUE, scale = TRUE) %>%
+  getElement("x") %>%
+  data.frame() %>%
+  cbind(select(freq_df, status, taxon, prot), .) %>% 
+  mutate(taxon = factor(taxon, labels = c("Eukaryotes", "Gram-negative", "Gram-positive")),
+         status = factor(status, labels = c("Mature protein", "Signal peptide")))
+
+plot_pca <- function(pca)
+  ggplot(pca, aes(x = PC1, y = PC2, color = taxon, fill = taxon)) + 
+  stat_density2d(aes(fill=taxon, alpha=..level.., linetype = status), 
+                 color = "black",
+                 contour = TRUE, geom="polygon") +
+  scale_shape_discrete("") +
+  scale_fill_discrete("") +
+  scale_linetype_manual(values = c("solid", "dashed")) +
+  scale_alpha_continuous(range = c(0.15, 0.3)) +
+  guides(alpha = FALSE) +
+  my_theme
+
+filter(pca_df, status == "Signal peptide") %>% 
+  plot_pca() + 
+  guides(linetype = FALSE) 
+  #ggtitle("PCA częstości aminokwasów w peptydach sygnałowych")
+@  
+
+PCA of amino acid frequency in signal peptides (reduced alphabet).
+\end{frame}  
+
+\begin{frame}
+<<echo = FALSE, message=FALSE,warning=FALSE,fig.height=4,results='asis'>>=
+filter(pca_df, status == "Signal peptide") %>% 
+  plot_pca() +  
+  guides(linetype = FALSE) +
+  facet_wrap(~ taxon)
+  #ggtitle("PCA częstości aminokwasów w peptydach sygnałowych")
+@  
+
+PCA of amino acid frequency in signal peptides (reduced alphabet).
+\end{frame}  
+
+\begin{frame}{Summary}
+\begin{itemize}
+\item Mean $\chi^2$ is not the appropriate fitness measure.
+\item Repeats of spefic amino acids (A, C, L and S) are typical for signal peptides \citep{labaj_single_2010}.
+\end{itemize}
+\end{frame}  
+
+\begin{frame}{Acknowledgments}
+National Science Center.
+
+
+\includegraphics[width=0.55\textwidth]{static_figure/logo.png}
+
+\end{frame}  
 
 \begin{frame}[allowframebreaks]
         \frametitle{References}

@@ -1,2 +1,5 @@
 \beamer@endinputifotherversion {3.36pt}
-\beamer@sectionintoc {1}{Simplified alphabets}{5}{0}{1}
+\beamer@sectionintoc {1}{Simplified alphabets}{3}{0}{1}
+\beamer@sectionintoc {2}{Signal peptides}{10}{0}{2}
+\beamer@sectionintoc {3}{Methodology}{15}{0}{3}
+\beamer@sectionintoc {4}{Results}{23}{0}{4}
